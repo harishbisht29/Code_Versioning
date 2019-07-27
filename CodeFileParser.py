@@ -1,5 +1,9 @@
+import re 
+import Version_Selector
+
 class CodeFileParser:
-    mappingFile= None
+
+    versionMap = None
     codeFile= None
     outputFile = None
 
@@ -8,7 +12,8 @@ class CodeFileParser:
     justParenthesis = None
 
     def __init__(self, mappingFile, codeFile, outputFile):
-        self.mappingFile= mappingFile
+        self.versionMap = Version_Selector.VersionSelector(mappingFile).versionSelectionMap
+    
         self.codeFile= codeFile
         self.outputFile= outputFile
         self.codeFileLines= []
@@ -16,7 +21,7 @@ class CodeFileParser:
         with open(self.codeFile) as cf:
             self.codeFileLines = cf.readlines()
 
-        self.justParenthesis = [''.join(c for c in s if c in '{}') for s in self.codeFileLines]
+        # self.justParenthesis = [''.join(c for c in s if c in '{}') for s in self.codeFileLines]
 
     def printCodeFileLines(self):
         print("--------------------Printing Code File Lines->--------------------")
@@ -60,10 +65,43 @@ class CodeFileParser:
             bracIndex = 0
         return (foundLineNumber,foundBracindex+1)
 
+    def createOutputFile(self):
+        outputFile = open(self.outputFile,"w")
+        # outputFile.write("Hello\nworld")
+        reg_exp = self.versionStartString+r"\s*(\w+)=\s*(\w+)"
+        pattern = re.compile(reg_exp)
+        for line_number in range(len(self.codeFileLines)):
+            
+            codeLine = self.codeFileLines[line_number]
+            # codeLine  = "Hi world"+self.versionStartString+"Version_Name=Type"
+            search = pattern.search(codeLine)
+            if search is not None:
+                
+                Version_Name = search.group(1).upper()
+                Version_Value = search.group(2).upper()                
+                print(codeLine)
+                print(Version_Name)
+                print(Version_Value)
+
+                if self.versionMap.get(Version_Name) == None:
+                    print("Version Not Mentioned in mapping file")
+                else:
+                    
+                    if self.versionMap.get(Version_Name) == Version_Value:
+                        print("Version Should be selected")
+                    else:
+                        print("Version Shouldn't be selected")
+                    
+
+                starti, endi = search.span();
+                print("LineNumber:",line_number,"start_index:",starti,"end_index",endi)
+                
+        outputFile.close()
+
+
 if __name__ == '__main__':
     cfp = CodeFileParser("mapping.csv", "Test_Code.sas", "output.sas")
-    out = cfp.findMatchingClosedParenthesis((49,3))
-    print(out)
+    cfp.createOutputFile()
     # cfp.printJustParenthesis()
     # cfp.printCodeFileLines()
 
