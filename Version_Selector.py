@@ -22,7 +22,11 @@ class VersionSelector:
     def getVersionValue(self, vname):
         return self.versionSelectionMap[vname.upper()]
 
+    def getVersionMapping(self):
+        return self.versionSelectionMap
+
 if __name__ == '__main__':
     vs = VersionSelector("mapping.csv")
     vs.printversionSelectionMap()
     print(vs.getVersionValue("Head_LINE"))
+    print(vs.getVersionMapping())

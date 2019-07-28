@@ -1,4 +1,4 @@
-import re 
+import re
 import Version_Selector
 
 class CodeFileParser:
@@ -6,97 +6,84 @@ class CodeFileParser:
     versionMap = None
     codeFile= None
     outputFile = None
-
+    codeFileContent = None
     codeFileLines = None
-    versionStartString = "#Version_Start:"
-    justParenthesis = None
+    startKeyword = "#Version_Start:"
+    readPoint = 0
 
     def __init__(self, mappingFile, codeFile, outputFile):
-        self.versionMap = Version_Selector.VersionSelector(mappingFile).versionSelectionMap
-    
+        self.versionMap = Version_Selector.VersionSelector(mappingFile).getVersionMapping()
+
         self.codeFile= codeFile
         self.outputFile= outputFile
-        self.codeFileLines= []
 
         with open(self.codeFile) as cf:
-            self.codeFileLines = cf.readlines()
+            self.codeFileContent = cf.read()
+            # print(self.codeFileContent)
+            # print(len(self.codeFileContent))
+            # self.codeFileContent = "   #Version_Start: Head_Line=None    { {} This is just a test     }   "
 
-        # self.justParenthesis = [''.join(c for c in s if c in '{}') for s in self.codeFileLines]
-
-    def printCodeFileLines(self):
-        print("--------------------Printing Code File Lines->--------------------")
-        print("contents->",self.codeFileLines)
-        print("length->", len(self.codeFileLines))
-
-    def printJustParenthesis(self):
-        print("---------------------Printing Just Parenthesis Lines------------------")
-        print("contents->",self.justParenthesis)
-        print("length->",len(self.justParenthesis))
 
     def setVersionStartIndentifier(self,vIdentifier="#Version_Start:"):
-        self.versionStartString = vIdentifier
+        self.startKeyword = vIdentifier
 
-    def findMatchingClosedParenthesis(self,oParaDimension):
-        bracLineNumber = oParaDimension[0]
-        bracIndex = oParaDimension[1]
-        linesToProcess = self.codeFileLines[bracLineNumber-1:] 
+    def findMatchingClosedParenthesis(self,openIndex):
+       content = self.codeFileContent[openIndex+1:]
+       extraOpenBrackets = 0
+       for i in range(len(content)):
+           char = content[i]
+           if char == "{":
+               extraOpenBrackets = extraOpenBrackets+ 1
+           elif char == "}" and extraOpenBrackets == 0:
+               return openIndex+i+1
+           elif char == "}":
+               extraOpenBrackets = extraOpenBrackets -1
 
-        linesToProcess[0] = linesToProcess[0][bracIndex:]
-        innerOpeningBrackets = 0
-        foundLineNumber= 0
-        foundBracindex= 0
-        for lineNumber in range(len(linesToProcess)):
-            line = linesToProcess[lineNumber]
-            print(line)
-            for characterNumber in range(len(line)):
-                character = line[characterNumber]
-                print(character)
-                if character == "{":
-                    innerOpeningBrackets  = innerOpeningBrackets + 1
-                elif character == "}":
-                    if innerOpeningBrackets == 0:
-                        foundLineNumber = lineNumber + bracLineNumber
-                        foundBracindex = characterNumber + bracIndex
-                        break;
-                    else:
-                        innerOpeningBrackets = innerOpeningBrackets - 1
-            if foundLineNumber != 0:
-                break;
-            bracIndex = 0
-        return (foundLineNumber,foundBracindex+1)
-
+    def checkVersionEntry(self, pos):
+        return True if self.codeFileContent[pos:pos+ len(self.startKeyword)] == self.startKeyword else False
+                   
     def createOutputFile(self):
+
+        keywordLength = len(self.startKeyword) 
         outputFile = open(self.outputFile,"w")
-        # outputFile.write("Hello\nworld")
-        reg_exp = self.versionStartString+r"\s*(\w+)=\s*(\w+)"
-        pattern = re.compile(reg_exp)
-        for line_number in range(len(self.codeFileLines)):
-            
-            codeLine = self.codeFileLines[line_number]
-            # codeLine  = "Hi world"+self.versionStartString+"Version_Name=Type"
-            search = pattern.search(codeLine)
-            if search is not None:
-                
-                Version_Name = search.group(1).upper()
-                Version_Value = search.group(2).upper()                
-                print(codeLine)
-                print(Version_Name)
-                print(Version_Value)
+        isVersionStart= False
+        stallingFlag = False
 
-                if self.versionMap.get(Version_Name) == None:
-                    print("Version Not Mentioned in mapping file")
+        while True:
+            if (self.readPoint == len(self.codeFileContent)):
+                break;
+            if self.checkVersionEntry(self.readPoint):
+                print("Version Start Keyword Detected at ",self.readPoint)
+
+                reg_exp = self.startKeyword+r"\s*(\w+)=\s*(\w+)"
+                pattern = re.compile(reg_exp)
+                search = pattern.search(self.codeFileContent,pos=self.readPoint)
+                versionName = search.group(1).upper()
+                versionValue = search.group(2).upper()
+        
+                openBracket = self.codeFileContent.find("{",self.readPoint)
+                closedBracket = self.findMatchingClosedParenthesis(openBracket)
+                print("version open bracket-",openBracket)
+                print("version closed bracket-",closedBracket)
+                x,y = search.span()
+
+                print("versionName-",versionName+ " versionValue-"+ versionValue)
+
+                if self.versionMap[versionName] == versionValue:
+                    self.codeFileContent = self.codeFileContent[:x]+ self.codeFileContent[openBracket+1:closedBracket]+ self.codeFileContent[closedBracket+1:];
+                    
+                    print(versionName," should be included")
+                    print("Opening bracket ", openBracket)
+                    print("Closing bracket ", closedBracket)
                 else:
-                    
-                    if self.versionMap.get(Version_Name) == Version_Value:
-                        print("Version Should be selected")
-                    else:
-                        print("Version Shouldn't be selected")
-                    
+                    print(versionName," shouldn't be included")
+                    self.codeFileContent = self.codeFileContent[:x]+ self.codeFileContent[closedBracket+1:]
 
-                starti, endi = search.span();
-                print("LineNumber:",line_number,"start_index:",starti,"end_index",endi)
-                
+            outputFile.write(self.codeFileContent[self.readPoint])
+            self.readPoint = self.readPoint+ 1
+
         outputFile.close()
+
 
 
 if __name__ == '__main__':
@@ -104,9 +91,3 @@ if __name__ == '__main__':
     cfp.createOutputFile()
     # cfp.printJustParenthesis()
     # cfp.printCodeFileLines()
-
-
-
-
-
-    
