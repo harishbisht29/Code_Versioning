@@ -10,4 +10,5 @@ We have just added 3 modifications to our base code and we have end up with 4 di
 ## The Solution
 Code Versioning will be very useful for maintaining different code logic inside a single program. If all the code logic is present in single code it becomes very easy to keep track of previous changes made as well as very less  disk space will be used by the program. Before executing the actual code just pass the code file to this program along with the versions which should be picked. The code versioning program will create the final code which can be executed.
 
+![](images/Code_Versioning_Flow.PNG)
 
